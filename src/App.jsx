@@ -51,12 +51,12 @@ function computeFit(lead) {
   return { score, why: reasons.slice(0, 2).join(" · ") };
 }
 
-// ---------- Seed leads (real venues near La Grange, IL) ----------
+// ---------- Seed leads (real venues near Western Springs, IL) ----------
 const SEED = [
   { id: 1, name: "Mayslake Peabody Estate", type: "Museum", distanceMi: 2.4, budget: "mid", hostsLive: true, loud: false, contact: "630-206-9566", notes: "Historic Tudor estate in Oak Brook with a performing-arts theater and gallery — hosts concerts, weddings & receptions.", status: "New" },
   { id: 2, name: "Eddie V's Prime Seafood", type: "Fine Dining", distanceMi: 3.3, budget: "high", hostsLive: true, loud: false, contact: "630-371-0002", notes: "Upscale Oak Brook seafood/steak that already books live jazz nightly — a natural fit for solo classical.", status: "New" },
   { id: 3, name: "The Morton Arboretum", type: "Botanical Garden", distanceMi: 5.0, budget: "mid", hostsLive: true, loud: false, contact: "630-968-0074", notes: "1,700-acre botanical garden in Lisle; runs seasonal music programming and private events.", status: "New" },
-  { id: 4, name: "Hinsdale Golf Club", type: "Country Club", distanceMi: 1.2, budget: "high", hostsLive: false, loud: false, contact: "630-986-5330", notes: "Clarendon Hills club hosting weddings and private events — minutes from La Grange.", status: "New" },
+  { id: 4, name: "Hinsdale Golf Club", type: "Country Club", distanceMi: 1.2, budget: "high", hostsLive: false, loud: false, contact: "630-986-5330", notes: "Clarendon Hills club hosting weddings and private events — minutes from Western Springs.", status: "New" },
   { id: 5, name: "Ruth Lake Country Club", type: "Country Club", distanceMi: 2.2, budget: "high", hostsLive: false, loud: false, contact: "630-986-2060", notes: "Private Hinsdale club; weddings, galas and holiday parties.", status: "New" },
   { id: 6, name: "Acquisitions of Fine Art", type: "Art Gallery", distanceMi: 2.4, budget: "mid", hostsLive: false, loud: false, contact: "630-908-7227", notes: "Downtown Hinsdale gallery with opening receptions and photoshoot meetups.", status: "New" },
   { id: 7, name: "Hinsdale Prime Steak", type: "Fine Dining", distanceMi: 2.5, budget: "high", hostsLive: false, loud: false, contact: "630-819-6179", notes: "High-end Hinsdale steakhouse with a quiet, romantic dining room.", status: "New" },
@@ -203,6 +203,19 @@ const CSS = `
 .gp-field input,.gp-field select{padding:8px 10px;border-radius:8px;border:1px solid rgba(194,154,78,.3);background:rgba(244,233,210,.06);color:var(--spruce);font-family:Inter;font-size:13px}
 .gp-check{display:flex;align-items:center;gap:6px;font-size:13px;color:rgba(244,233,210,.85)}
 .gp-foot{text-align:center;margin-top:24px;font-size:12px;color:rgba(244,233,210,.45)}
+.gp-find-leads-btn{margin-left:auto;font-size:13px;padding:6px 16px;border-radius:999px;border:none;background:var(--brass);color:var(--rosewood);cursor:pointer;font-weight:600}
+.gp-find-leads-btn:hover{background:#d2aa5e}
+.gp-find-leads-btn:disabled{opacity:.7;cursor:default}
+.gp-search-status{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:rgba(244,233,210,.7);margin:0 0 14px}
+.gp-search-status.err{color:#e0a07a}
+.gp-hero{background:linear-gradient(180deg,rgba(58,39,31,.6),rgba(58,39,31,.28));border:1px solid rgba(194,154,78,.3);border-radius:16px;padding:44px 26px;text-align:center;margin:10px 0 18px;animation:rise .4s ease both}
+.gp-hero-title{font-family:Fraunces,serif;font-weight:600;font-size:clamp(22px,5vw,30px);color:var(--spruce);margin:0 0 8px}
+.gp-hero-sub{font-size:14px;line-height:1.55;color:rgba(244,233,210,.72);max-width:460px;margin:0 auto 22px}
+.gp-hero-btn{font-family:Inter;font-size:15px;font-weight:600;padding:13px 28px;border-radius:999px;border:none;background:var(--brass);color:var(--rosewood);cursor:pointer;box-shadow:0 8px 22px rgba(194,154,78,.3)}
+.gp-hero-btn:hover{background:#d2aa5e}
+.gp-hero-alt{display:block;margin:16px auto 0;background:none;border:none;color:rgba(244,233,210,.5);text-decoration:underline;cursor:pointer;font-size:12px}
+.gp-hero-err{color:#e0a07a;font-size:13px;margin:14px 0 0}
+.gp-hero-bigspin{display:inline-block;width:30px;height:30px;border:3px solid rgba(244,233,210,.25);border-top-color:var(--brass);border-radius:50%;animation:sp .7s linear infinite;margin-bottom:16px}
 .gp-foot button{background:none;border:none;color:rgba(194,154,78,.7);cursor:pointer;text-decoration:underline;font-size:12px}
 .gp-more{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:6px 0 4px}
 .gp-more-count{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:rgba(244,233,210,.5)}
@@ -237,7 +250,7 @@ const DEFAULT_PROFILE = {
   edge: "High-level musicianship made accessible and human — rooted in connecting with the audience and honoring the guitar's tradition while keeping it alive and relevant in any setting",
   website: "jasonderoche.com",
   sample: "",
-  base: "La Grange, IL",
+  base: "Western Springs, IL",
   availability: "",
   rate: "",
 };
@@ -290,9 +303,23 @@ function extractJSON(text) {
   return null;
 }
 
+// Pull a JSON array of leads out of a model reply (handles arrays, {leads:[]}, or stray prose).
+function extractLeadsArray(text) {
+  if (!text) return null;
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  let t = text.trim().replace(/```json/gi, "").replace(/```/g, "").trim();
+  let r = tryParse(t);
+  if (Array.isArray(r)) return r;
+  if (r && Array.isArray(r.leads)) return r.leads;
+  if (r && Array.isArray(r.venues)) return r.venues;
+  const first = t.indexOf("["), last = t.lastIndexOf("]");
+  if (first !== -1 && last > first) { const a = tryParse(t.slice(first, last + 1)); if (Array.isArray(a)) return a; }
+  return null;
+}
+
 export default function App() {
   const [name, setName] = useState("Jason Deroche");
-  const [leads, setLeads] = useState(SEED);
+  const [leads, setLeads] = useState([]);
   const [filter, setFilter] = useState("Active");
   const [openId, setOpenId] = useState(null);
   const [pitches, setPitches] = useState({});
@@ -302,6 +329,8 @@ export default function App() {
   const [copiedId, setCopiedId] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
   const [findingId, setFindingId] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [form, setForm] = useState({ name: "", type: TYPES[0], distanceMi: "", budget: "mid", hostsLive: false, loud: false, contact: "", notes: "" });
@@ -310,7 +339,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const s = await window.storage.get("gigpipeline:v5");
+        const s = await window.storage.get("gigpipeline:v6");
         if (s && s.value) {
           const data = JSON.parse(s.value);
           if (data.name) setName(data.name);
@@ -327,7 +356,7 @@ export default function App() {
   useEffect(() => {
     if (!hydrated) return;
     (async () => {
-      try { await window.storage.set("gigpipeline:v5", JSON.stringify({ name, leads, pitches, profile })); }
+      try { await window.storage.set("gigpipeline:v6", JSON.stringify({ name, leads, pitches, profile })); }
       catch (e) { /* storage unavailable */ }
     })();
   }, [name, leads, pitches, profile, hydrated]);
@@ -439,7 +468,7 @@ Return ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
 
 Business: ${lead.name}
 Type: ${lead.type}
-Context: ${lead.notes || "n/a"} (located in the La Grange / DuPage County, Illinois area)
+Context: ${lead.notes || "n/a"} (located in the Western Springs (Chicago western suburbs), Illinois area)
 Known phone: ${lead.contact || "n/a"}
 
 Search the web for THIS exact business and find the best email to reach about booking live music, private events, weddings, or programming. Prefer a direct events / booking / catering email or a named contact (events manager, catering director, activities or life-enrichment director for senior communities, gallery director, etc.) over a generic info@ — but a verified info@ or a contact-form page beats nothing. Match the exact business and location; avoid same-named businesses elsewhere. Do not invent an email — if you can't verify one, return it empty.
@@ -490,6 +519,75 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
     });
   }
 
+  async function findNewLeads() {
+    setSearching(true);
+    setSearchError("");
+    const base = profile.base || "Western Springs, IL";
+    const have = leads.map((l) => l.name.trim().toLowerCase());
+    const prompt = `You are a lead-sourcing assistant for ${name}, a classical guitarist seeking PAID private and event gigs near ${base} (Chicago's western suburbs).
+
+Use web search to find REAL, currently-operating venues and bookers within about 25 miles that would hire or host solo classical guitar — paid B2B opportunities, not open mics or public concert listings. Spread across these categories: wineries / tasting rooms, art galleries, museums, boutique hotels, fine dining with ambiance, country clubs, botanical gardens, libraries with concert series, churches with music programs, retirement / senior communities, funeral homes, and wedding / event planners or venues.
+
+Return about 15 venues. Each must be an object with EXACTLY these fields:
+- "name": official business name
+- "type": MUST be exactly one of: ${TYPES.join(", ")}
+- "distanceMi": rough driving miles from ${base} (a number)
+- "budget": "high", "mid", or "low" (your read on whether they pay well for talent)
+- "hostsLive": true if they already host live music, else false
+- "loud": true only if it's a loud room where classical would get lost, else false
+- "contact": a real phone number if you find one, else ""
+- "notes": one concise sentence on what they host and why it fits
+
+Match exact local businesses; never invent venues or phone numbers — leave "contact" empty if unsure. Avoid any already in this list: ${have.join("; ") || "(none)"}.
+Keep any text brief. Return ONLY a JSON array of the objects, nothing else.`;
+    try {
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+        }),
+      });
+      const data = await res.json();
+      const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+      const arr = extractLeadsArray(text);
+      if (!arr || !arr.length) { setSearchError("Couldn't pull leads just now — try again, or load the sample set below."); return; }
+      const seen = new Set(have);
+      let nextId = Math.max(0, ...leads.map((l) => l.id)) + 1;
+      const cleaned = arr
+        .filter((o) => o && o.name && !seen.has(String(o.name).trim().toLowerCase()))
+        .map((o) => {
+          seen.add(String(o.name).trim().toLowerCase());
+          return {
+            id: nextId++,
+            name: String(o.name).trim(),
+            type: TYPES.includes(o.type) ? o.type : "Fine Dining",
+            distanceMi: (o.distanceMi === 0 || o.distanceMi) ? Number(o.distanceMi) : "",
+            budget: ["high", "mid", "low"].includes(o.budget) ? o.budget : "mid",
+            hostsLive: !!o.hostsLive,
+            loud: !!o.loud,
+            contact: o.contact ? String(o.contact).trim() : "",
+            notes: o.notes ? String(o.notes).trim() : "",
+            status: "New",
+          };
+        });
+      if (!cleaned.length) { setSearchError("No new venues beyond what's already in the pipeline."); return; }
+      setLeads((ls) => [...ls, ...cleaned]);
+      setFilter("Active"); setVisibleCount(10);
+    } catch (e) {
+      setSearchError("Search failed — check the connection and try again.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function loadSamples() {
+    setLeads(SEED); setFilter("Active"); setVisibleCount(10); setSearchError("");
+  }
+
   function addLead() {
     if (!form.name.trim()) return;
     const id = Math.max(0, ...leads.map((l) => l.id)) + 1;
@@ -500,8 +598,8 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
   }
 
   async function resetAll() {
-    setLeads(SEED); setPitches({}); setName("Jason Deroche"); setProfile(DEFAULT_PROFILE);
-    try { await window.storage.delete("gigpipeline:v5"); } catch (e) {}
+    setLeads([]); setPitches({}); setName("Jason Deroche"); setProfile(DEFAULT_PROFILE); setSearchError("");
+    try { await window.storage.delete("gigpipeline:v6"); } catch (e) {}
   }
 
   return (
@@ -511,7 +609,7 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
         <div className="gp-eyebrow">Gig Pipeline</div>
         <input className="gp-name" value={name} onChange={(e) => setName(e.target.value)}
           onFocus={(e) => e.target.select()} aria-label="Your name (click to edit)" />
-        <div className="gp-sub">Classical guitar · paid gigs near La Grange, IL · tap your name above to edit</div>
+        <div className="gp-sub">Classical guitar · paid gigs near Western Springs, IL · tap your name above to edit</div>
 
         <div className="gp-stats">
           <div className="gp-stat"><b>{stats.total}</b><span>Leads</span></div>
@@ -523,9 +621,17 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
           {["Active", "All", "Booked", "Passed"].map((t) => (
             <button key={t} className={`gp-tab ${filter === t ? "active" : ""}`} onClick={() => { setFilter(t); setVisibleCount(10); }}>{t}</button>
           ))}
+          <button className="gp-find-leads-btn" onClick={findNewLeads} disabled={searching}>
+            {searching ? <><span className="gp-spin-dark" />Searching…</> : "🔎 Find leads"}
+          </button>
           <button className="gp-profile-btn" onClick={() => { setShowProfile((s) => !s); setShowForm(false); }}>{showProfile ? "Close" : "✎ Profile"}</button>
           <button className="gp-add-btn" onClick={() => { setShowForm((s) => !s); setShowProfile(false); }}>{showForm ? "Close" : "+ Add lead"}</button>
         </div>
+
+        {searching && leads.length > 0 && (
+          <div className="gp-search-status"><span className="gp-spin" />Scouting more venues near {profile.base}…</div>
+        )}
+        {searchError && leads.length > 0 && <div className="gp-search-status err">{searchError}</div>}
 
         {showProfile && (
           <div className="gp-form">
@@ -552,7 +658,7 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
               <div className="gp-field"><label>Sample link (audio / video)</label><input value={profile.sample} onChange={(e) => setProfile({ ...profile, sample: e.target.value })} placeholder="YouTube, SoundCloud…" /></div>
             </div>
             <div className="gp-row">
-              <div className="gp-field"><label>Home base</label><input value={profile.base} onChange={(e) => setProfile({ ...profile, base: e.target.value })} placeholder="La Grange, IL" /></div>
+              <div className="gp-field"><label>Home base</label><input value={profile.base} onChange={(e) => setProfile({ ...profile, base: e.target.value })} placeholder="Western Springs, IL" /></div>
               <div className="gp-field"><label>Availability</label><input value={profile.availability} onChange={(e) => setProfile({ ...profile, availability: e.target.value })} placeholder="Weekends, evenings…" /></div>
               <div className="gp-field"><label>Rate guidance (optional)</label><input value={profile.rate} onChange={(e) => setProfile({ ...profile, rate: e.target.value })} placeholder="Kept private unless asked" /></div>
             </div>
@@ -583,7 +689,27 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
           </div>
         )}
 
-        {visible.length === 0 && <div className="gp-sub" style={{ padding: "20px 0" }}>No leads here yet. Add one, or switch tabs.</div>}
+        {leads.length === 0 ? (
+          <div className="gp-hero">
+            {searching ? (
+              <>
+                <div className="gp-hero-bigspin" />
+                <h2 className="gp-hero-title">Scouting venues near {profile.base}…</h2>
+                <p className="gp-hero-sub">Searching the web for wineries, galleries, clubs, hotels, senior communities and more — then ranking them by fit. This takes a few seconds.</p>
+              </>
+            ) : (
+              <>
+                <h2 className="gp-hero-title">Let's find Jason some gigs</h2>
+                <p className="gp-hero-sub">Pull a fresh batch of real venues and event bookers near {profile.base}, ranked by fit. Then draft a tailored pitch and find the booking email for any worth chasing.</p>
+                <button className="gp-hero-btn" onClick={findNewLeads}>🔎 Find new leads</button>
+                {searchError && <p className="gp-hero-err">{searchError}</p>}
+                <button className="gp-hero-alt" onClick={loadSamples}>or load 45 sample venues</button>
+              </>
+            )}
+          </div>
+        ) : (
+        <>
+        {visible.length === 0 && <div className="gp-sub" style={{ padding: "20px 0" }}>No leads in this tab. Switch tabs, or pull more with “Find leads.”</div>}
 
         {shown.map((l) => (
           <div key={l.id} className={`gp-card ${l.status === "Passed" ? "dim" : ""}`}>
@@ -663,9 +789,11 @@ Use empty strings where unknown. Confidence = how sure you are this is the right
             )}
           </div>
         )}
+        </>
+        )}
 
         <div className="gp-foot">
-          Prototype · real venues near La Grange, IL · verify contacts before sending · pitches written live · <button onClick={resetAll}>reset leads</button>
+          Prototype · real venues near Western Springs, IL · verify contacts before sending · pitches written live · <button onClick={resetAll}>reset leads</button>
         </div>
       </div>
     </div>
